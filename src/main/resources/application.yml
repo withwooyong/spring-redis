@@ -1,0 +1,5 @@
+spring:
+  redis:
+    host: yanadooapi.pepn1x.ng.0001.apn2.cache.amazonaws.com
+    #    host: 127.0.0.1
+    port: 6379
