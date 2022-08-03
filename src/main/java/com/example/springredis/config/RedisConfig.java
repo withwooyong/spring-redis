@@ -15,6 +15,7 @@ import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 @Slf4j
@@ -23,6 +24,7 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 public class RedisConfig {
 
     private final RedisProperties properties;
+
     @Bean(name = "redisConnectionFactory")
     public RedisConnectionFactory redisConnectionFactory() {
         log.info("redisConnectionFactory host={}", properties.getHost());
@@ -31,33 +33,22 @@ public class RedisConfig {
         configuration.setHostName(properties.getHost());
         configuration.setPort(properties.getPort());
         return new LettuceConnectionFactory(configuration); // Lettuce 사용
-//        return new LettuceConnectionFactory();
     }
 
-    @Bean(name = "redisConnectionFactoryLocal")
-    public RedisConnectionFactory redisConnectionFactoryLocal() {
-        log.info("local host={}", "127.0.0.1");
-        log.info("local port={}", properties.getPort());
-        RedisStandaloneConfiguration configuration = new RedisStandaloneConfiguration();
-        configuration.setHostName("127.0.0.1");
-        configuration.setPort(properties.getPort());
-        return new LettuceConnectionFactory(configuration);
+    @Bean(name = "redisTemplate2")
+    public RedisTemplate<String, Object> redisTemplate2() {
+        RedisTemplate<String, Object> redisTemplate = new RedisTemplate<>();
+        redisTemplate.setConnectionFactory(redisConnectionFactory());
+        redisTemplate.setKeySerializer(new StringRedisSerializer());   // Key: String
+        redisTemplate.setValueSerializer(new Jackson2JsonRedisSerializer<>(String.class));  // Value: 직렬화에 사용할 Object 사용하기
+        return redisTemplate;
     }
-
-//    @Bean
-//    public RedisTemplate<String, Object> redisTemplate() {
-//        RedisTemplate<String, Object> redisTemplate = new RedisTemplate<>();
-//        redisTemplate.setConnectionFactory(redisConnectionFactory());
-//        redisTemplate.setKeySerializer(new StringRedisSerializer());   // Key: String
-//        redisTemplate.setValueSerializer(new Jackson2JsonRedisSerializer<>(String.class));  // Value: 직렬화에 사용할 Object 사용하기
-//        return redisTemplate;
-//    }
 
     @Bean(name = "redisTemplate")
-    public RedisTemplate<Object, Object> redisTemplate() {
-        ObjectMapper objectMapper = getObjectMapper();
-
-        RedisTemplate<Object, Object> redisTemplate = new RedisTemplate<>();
+    public RedisTemplate<String, Object> redisTemplate() {
+//        ObjectMapper objectMapper = getObjectMapper();
+        ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
+        RedisTemplate<String, Object> redisTemplate = new RedisTemplate<>();
         redisTemplate.setKeySerializer(new StringRedisSerializer());
         redisTemplate.setValueSerializer(new GenericJackson2JsonRedisSerializer(objectMapper));
         redisTemplate.setHashKeySerializer(new StringRedisSerializer());
@@ -66,32 +57,11 @@ public class RedisConfig {
         return redisTemplate;
     }
 
-    @Bean(name = "redisTemplateLocal")
-    public RedisTemplate<String, Object> redisTemplateLocal() {
-        ObjectMapper objectMapper = getObjectMapper();
-
-        RedisTemplate<String, Object> redisTemplate = new RedisTemplate<>();
-        redisTemplate.setKeySerializer(new StringRedisSerializer());
-        redisTemplate.setValueSerializer(new GenericJackson2JsonRedisSerializer(objectMapper));
-        redisTemplate.setHashKeySerializer(new StringRedisSerializer());
-        redisTemplate.setHashValueSerializer(new GenericJackson2JsonRedisSerializer(objectMapper));
-        redisTemplate.setConnectionFactory(redisConnectionFactoryLocal());
-        return redisTemplate;
-    }
-
-//    @Bean
-//    public RedisTemplate<String, Object> redisTemplateLocal() {
-//        RedisTemplate<String, Object> redisTemplate = new RedisTemplate<>();
-//        redisTemplate.setConnectionFactory(redisConnectionFactoryLocal());
-//        redisTemplate.setKeySerializer(new StringRedisSerializer());   // Key: String
-//        redisTemplate.setValueSerializer(new Jackson2JsonRedisSerializer<>(String.class));  // Value: 직렬화에 사용할 Object 사용하기
-//        return redisTemplate;
-//    }
-
     private ObjectMapper getObjectMapper() {
 //        PolymorphicTypeValidator pv = BasicPolymorphicTypeValidator.builder().build();
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.enableDefaultTyping(ObjectMapper.DefaultTyping.NON_FINAL, JsonTypeInfo.As.PROPERTY);
+
 //        objectMapper.activateDefaultTyping(pv, ObjectMapper.DefaultTyping.NON_FINAL, JsonTypeInfo.As.PROPERTY);
         objectMapper.enable(DeserializationFeature.ACCEPT_EMPTY_ARRAY_AS_NULL_OBJECT);
         objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
